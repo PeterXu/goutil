@@ -10,7 +10,7 @@ typedef short * int16ptr;
 typedef short int16;
 typedef unsigned short uint16;
 
-void convert_to_int16(uint8ptr src, size_t srcLen, int16ptr dst, size_t dstLen) {
+static void goutil_convert_to_int16(uint8ptr src, size_t srcLen, int16ptr dst, size_t dstLen) {
     if (srcLen <= (dstLen * 2)) {
         uint8ptr tmp = (uint8ptr)dst;
         memcpy(tmp, src, srcLen);
@@ -290,6 +290,6 @@ func Convert2Int16(src []byte) []int16 {
 	dst := make([]int16, (len(src)+1)/2)
 	dst_ptr := C.int16ptr(unsafe.Pointer(&dst[0]))
 	dst_len := C.size_t(len(dst))
-	C.convert_to_int16(src_ptr, src_len, dst_ptr, dst_len)
+	C.goutil_convert_to_int16(src_ptr, src_len, dst_ptr, dst_len)
 	return dst
 }
