@@ -7,7 +7,7 @@
 // Based on https://github.com/smancke/handler/gzip.
 //
 // Based on https://github.com/fabiolb/fabio/proxy/gzip.
-package util
+package goutil
 
 import (
 	"bufio"

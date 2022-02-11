@@ -1,4 +1,4 @@
-package util
+package goutil
 
 /*
 #cgo CFLAGS: -Wno-deprecated -std=c99

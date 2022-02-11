@@ -1,4 +1,4 @@
-package util
+package goutil
 
 /*
 #cgo CFLAGS: -Wno-deprecated -std=c99
@@ -22,8 +22,8 @@ import "C"
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
-	"log"
 	"reflect"
 	"strconv"
 	"unsafe"
@@ -147,7 +147,7 @@ func BytesToUint32(bytes []byte) uint32 {
 func ValueOrderChange(T interface{}, order binary.ByteOrder) interface{} {
 	bytes := ValueToBytes(T)
 	if bytes == nil {
-		log.Println("invalid bytes in ValueOrderChange")
+		fmt.Println("invalid bytes in ValueOrderChange")
 		return 0
 	}
 
@@ -158,7 +158,7 @@ func ValueOrderChange(T interface{}, order binary.ByteOrder) interface{} {
 	} else if len(bytes) == 8 {
 		return order.Uint64(bytes[0:])
 	} else {
-		log.Println("invalid length in ValueOrderChange")
+		fmt.Println("invalid length in ValueOrderChange")
 	}
 	return 0
 }

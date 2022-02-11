@@ -1,8 +1,7 @@
-package util
+package goutil
 
 import (
 	"errors"
-	"log"
 	"net"
 	"os"
 	"strings"
@@ -92,10 +91,12 @@ type SocketFD interface {
 }
 
 // SetSocketReuseAddr to set socket with SO_REUSEADDR.
-func SetSocketReuseAddr(sock SocketFD) {
+func SetSocketReuseAddr(sock SocketFD) error {
 	if file, err := sock.File(); err == nil {
-		//log.Println("set reuse addr")
 		syscall.SetsockoptInt(int(file.Fd()), syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1)
+		return nil
+	} else {
+		return err
 	}
 }
 
@@ -116,17 +117,15 @@ func LocalIP() (net.IP, error) {
 }
 
 // LocalIPString to return a non-loopback address string for local machine.
-func LocalIPString() string {
+func LocalIPString() (string, error) {
 	ip, err := LocalIP()
 	if err != nil {
-		log.Println("Error determining local ip address. ", err)
-		return ""
+		return "", err
 	}
 	if ip == nil {
-		log.Println("Could not determine local ip address")
-		return ""
+		return "", errors.New("ip is nil")
 	}
-	return ip.String()
+	return ip.String(), nil
 }
 
 // LookupIP looks up host using the local resolver.

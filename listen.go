@@ -1,10 +1,10 @@
 // Package exit allows to register callbacks which are called on program exit.
 //
 // Based-on https://github.com/fabiolb/fabio/exit.
-package util
+package goutil
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -34,15 +34,15 @@ func Listen(fn func(os.Signal)) {
 			case sig = <-sigchan:
 				switch sig {
 				case syscall.SIGHUP:
-					log.Print("[INFO] Caught SIGHUP. Ignoring")
+					fmt.Print("Caught SIGHUP. Ignoring")
 					continue
 				case os.Interrupt:
-					log.Print("[INFO] Caught SIGINT. Exiting")
+					fmt.Print("Caught SIGINT. Exiting")
 				case syscall.SIGTERM:
-					log.Print("[INFO] Caught SIGTERM. Exiting")
+					fmt.Print("Caught SIGTERM. Exiting")
 				default:
 					// fallthrough in case we forgot to add a switch clause.
-					log.Printf("[INFO] Caught signal %v. Exiting", sig)
+					fmt.Printf("Caught signal %v. Exiting", sig)
 				}
 			case <-quit:
 			}

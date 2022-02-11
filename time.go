@@ -1,4 +1,4 @@
-package util
+package goutil
 
 import (
 	"encoding/binary"
@@ -7,23 +7,18 @@ import (
 
 const (
 	kNtpJan1970             uint32  = 2208988800
-	kMagicNtpFractionalUnit float64 = 4.294967296E+9
+	kMagicNtpFractionalUnit float64 = 4.294967296e+9
 	kFractionsPerSecond     uint64  = 0x100000000
-	kNtpFracPerMs           float64 = 4.294967296E6 // 2^32 / 1000
+	kNtpFracPerMs           float64 = 4.294967296e6 // 2^32 / 1000
 )
 
-// NowMs return crrent UTC time(milliseconds) with 32bit
-func NowMs() uint32 {
-	return uint32(time.Now().UTC().UnixNano() / int64(time.Millisecond))
-}
-
-// NowMs64 return crrent UTC time(milliseconds) with 64bit
-func NowMs64() int64 {
+// NowMs return crrent UTC time(milliseconds) with 64bit
+func NowMs() int64 {
 	return time.Now().UTC().UnixNano() / int64(time.Millisecond)
 }
 
 func TimeSince(earlier int64) int64 {
-	return NowMs64() - earlier
+	return NowMs() - earlier
 }
 
 // Sleep to wait some milliseconds and then wake
@@ -88,7 +83,7 @@ func CompactNtp(ntp *NtpTime) uint32 {
 }
 
 func CurrentNtpTime() *NtpTime {
-	now_ms := NowMs64()
+	now_ms := NowMs()
 	seconds := uint32(now_ms/1000) + kNtpJan1970
 	fractions := uint32(float64(now_ms%1000) * kMagicNtpFractionalUnit / 1000.0)
 	ntp := &NtpTime{}
@@ -97,7 +92,7 @@ func CurrentNtpTime() *NtpTime {
 }
 
 func CurrentNtpInMilliseconds() int64 {
-	now_ms := NowMs64()
+	now_ms := NowMs()
 	return now_ms + 1000*int64(kNtpJan1970)
 }
 

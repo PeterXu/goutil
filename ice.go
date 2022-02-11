@@ -1,4 +1,4 @@
-package util
+package goutil
 
 import (
 	"bytes"
@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"log"
 	"net"
 	"unsafe"
 )
@@ -141,17 +140,15 @@ type IceMessage struct {
 
 // Read Parses the STUN packet in the given buffer and records it here. The
 // return value indicates whether this was successful.
-func (m *StunMessage) Read(data []byte) bool {
+func (m *StunMessage) Read(data []byte) error {
 	if len(data) < kStunHeaderSize {
-		log.Print("[ice] invalid stun size=", len(data))
-		return false
+		return NewError("invalid stun size=", len(data))
 	}
 
 	// check the 1st byte
 	utype := data[0]
 	if utype != 0 && utype != 1 {
-		log.Println("[ice] invalid utype=", utype)
-		return false
+		return NewError("invalid utype=", utype)
 	}
 
 	// create Reader
@@ -159,31 +156,28 @@ func (m *StunMessage) Read(data []byte) bool {
 
 	// 0-2, read stun message type
 	ReadBig(buf, &m.Dtype)
-	//log.Println("[ice] message type=", m.Dtype)
+	//fmt.Println("[ice] message type=", m.Dtype)
 	if (m.Dtype & 0x8000) != 0 {
 		// RTP and RTCP set the MSB of first byte, since first two bits are version,
 		// and version is always 2 (10). If set, this is not a STUN packet.
-		log.Println("[ice] not stun message, (RTP/RTCP)type=", m.Dtype)
-		return false
+		return NewError("not stun message, (RTP/RTCP)type=", m.Dtype)
 	}
 
 	// 2-4, read stun message size
 	ReadBig(buf, &m.Length)
-	//log.Println("[ice] message length=", m.Length)
+	//fmt.Println("[ice] message length=", m.Length)
 	if (m.Length & 0x0003) != 0 {
-		log.Println("[ice] invalid message length=", m.Length)
-		return false
+		return NewError("invalid message length=", m.Length)
 	}
 
 	// 4-8, read stun magic
 	ReadBig(buf, &m.Magic)
-	//log.Println("[ice] read magic:", m.Magic, kStunMagicCookie)
+	//fmt.Println("[ice] read magic:", m.Magic, kStunMagicCookie)
 
 	// 8-20, read stun transaction id
 	var transId [kStunTransactionIdLength]byte
 	if ret, err := buf.Read(transId[:]); err != nil || ret != kStunTransactionIdLength {
-		log.Println("[ice] invalid transid ret=", ret, ", err=", err)
-		return false
+		return NewError2(err, "invalid transid ret=", ret)
 	}
 
 	if m.Magic != kStunMagicCookie {
@@ -194,13 +188,12 @@ func (m *StunMessage) Read(data []byte) bool {
 		m.TransId = string(transId[:])
 	}
 	// kStunTransactionIdLength/kStunLegacyTransactionIdLength
-	//log.Printf("[ice] message magic=%x, transId=%s_%d\n", m.Magic, m.TransId, len(m.TransId))
+	//fmt.Printf("[ice] message magic=%x, transId=%s_%d\n", m.Magic, m.TransId, len(m.TransId))
 
 	if int(m.Length) != buf.Len() {
 		// TODO: length= 80 , Len= 696
 		// invalid length= 108 , Len= 31
-		log.Println("[ice] invalid length=", m.Length, ", Len=", buf.Len(), len(data), m.TransId)
-		return false
+		return NewError("invalid length=", m.Length, ", Len=", buf.Len(), len(data), m.TransId)
 	}
 
 	if m.Attrs == nil {
@@ -209,7 +202,7 @@ func (m *StunMessage) Read(data []byte) bool {
 
 	for {
 		if buf.Len() < 4 {
-			//log.Println("[ice] no more data len=", buf.Len())
+			//fmt.Println("[ice] no more data len=", buf.Len())
 			break
 		}
 
@@ -217,7 +210,7 @@ func (m *StunMessage) Read(data []byte) bool {
 		var attrLen uint16
 		ReadBig(buf, &attrType)
 		ReadBig(buf, &attrLen)
-		//log.Println("[ice] attrType, attrLen=", attrType, attrLen)
+		//fmt.Println("[ice] attrType, attrLen=", attrType, attrLen)
 
 		var attr StunAttribute
 		switch attrType {
@@ -253,12 +246,12 @@ func (m *StunMessage) Read(data []byte) bool {
 		}
 	}
 
-	return true
+	return nil
 }
 
 // Write writes this object into a STUN packet. The return value indicates whether
 // this was successful.
-func (m *StunMessage) Write(buf *bytes.Buffer) bool {
+func (m *StunMessage) Write(buf *bytes.Buffer) error {
 	// 0-2, stun type
 	WriteBig(buf, m.Dtype)
 	// 2-4, stun body length
@@ -270,7 +263,7 @@ func (m *StunMessage) Write(buf *bytes.Buffer) bool {
 	// 8-20, stun transId
 	buf.WriteString(m.TransId)
 	// head: 2+2+[4]+12
-	//log.Println("[ice] write stun headLen=", buf.Len(), ", bodyLen=", m.Length)
+	//fmt.Println("[ice] write stun headLen=", buf.Len(), ", bodyLen=", m.Length)
 
 	// m.Length: stun body
 	// STUN_ATTR_USERNAME: 2+2+username
@@ -281,13 +274,12 @@ func (m *StunMessage) Write(buf *bytes.Buffer) bool {
 		WriteBig(buf, attr.GetType())
 		// 2bytes attr len
 		WriteBig(buf, attr.GetLen2())
-		//log.Println("[ice] write, attrType, attrLen=", attr.GetType(), attr.GetLen2())
-		if !attr.Write(buf) {
-			log.Println("[ice] fail to write buf from stunmessage")
-			return false
+		//fmt.Println("[ice] write, attrType, attrLen=", attr.GetType(), attr.GetLen2())
+		if err := attr.Write(buf); err != nil {
+			return NewError2(err, "fail to write buf from stunmessage")
 		}
 	}
-	return true
+	return nil
 }
 
 // IsLegacy Returns true if the message confirms to RFC3489 rather than
@@ -345,7 +337,7 @@ func (m *StunMessage) AddAttribute(attr StunAttribute) {
 }
 
 // AddMessageIntegrity Adds a MESSAGE-INTEGRITY attribute that is valid for the current message.
-func (m *StunMessage) AddMessageIntegrity(key string) bool {
+func (m *StunMessage) AddMessageIntegrity(key string) error {
 	integrityAttr := &StunByteStringAttribute{}
 	integrityAttr.SetType(STUN_ATTR_MESSAGE_INTEGRITY)
 	zeros := make([]byte, kStunMessageIntegritySize)
@@ -356,9 +348,8 @@ func (m *StunMessage) AddMessageIntegrity(key string) bool {
 	m.AddAttribute(integrityAttr)
 
 	var buf bytes.Buffer
-	if !m.Write(&buf) {
-		log.Println("[ice] hmac buf is null")
-		return false
+	if err := m.Write(&buf); err != nil {
+		return NewError2(err, "hmac buf is null")
 	}
 
 	attrLen := int(integrityAttr.GetLen2())
@@ -368,16 +359,15 @@ func (m *StunMessage) AddMessageIntegrity(key string) bool {
 	macFunc.Write(buf.Bytes()[0:msg_len_for_hmac])
 	digest := macFunc.Sum(nil)
 
-	//log.Printf("[ice] hmac bufLen=%d, attrLen=%d, msglen=%d, digestlen=%d\n",
+	//fmt.Printf("[ice] hmac bufLen=%d, attrLen=%d, msglen=%d, digestlen=%d\n",
 	//	buf.Len(), attrLen, msg_len_for_hmac, len(digest))
 	if len(digest) != kStunMessageIntegritySize {
-		log.Println("[ice] hmac digest wrong, len=", len(digest), string(digest))
-		return false
+		return NewError("hmac digest wrong, len=", len(digest), string(digest))
 	}
-	//log.Println("[ice] go hmac digest, len=", len(digest), digest)
+	//fmt.Println("[ice] go hmac digest, len=", len(digest), digest)
 	integrityAttr.CopyBytes(digest)
 
-	return true
+	return nil
 }
 
 func (m *StunMessage) ValidateMessageIntegrity() bool {
@@ -385,15 +375,14 @@ func (m *StunMessage) ValidateMessageIntegrity() bool {
 }
 
 // AddFingerprint Adds a FINGERPRINT attribute that is valid for the current message.
-func (m *StunMessage) AddFingerprint() bool {
+func (m *StunMessage) AddFingerprint() error {
 	fingerprinAttr := &StunUInt32Attribute{}
 	fingerprinAttr.SetType(STUN_ATTR_FINGERPRINT)
 	m.AddAttribute(fingerprinAttr)
 
 	var buf bytes.Buffer
-	if !m.Write(&buf) {
-		log.Println("[ice] fail to AddFingerprint")
-		return false
+	if err := m.Write(&buf); err != nil {
+		return NewError2(err, "fail to AddFingerprint")
 	}
 
 	attrLen := int(fingerprinAttr.GetLen2())
@@ -402,20 +391,20 @@ func (m *StunMessage) AddFingerprint() bool {
 	const kCrc32Polynomial uint32 = 0xEDB88320
 	crc32q := crc32.MakeTable(kCrc32Polynomial)
 	crc := crc32.Checksum(buf.Bytes()[0:msg_len_for_crc32], crc32q)
-	//log.Println("[ice] go stun crc32=", crc, msg_len_for_crc32, buf.Len())
+	//fmt.Println("[ice] go stun crc32=", crc, msg_len_for_crc32, buf.Len())
 
 	fingerprinAttr.SetValue(crc ^ STUN_FINGERPRINT_XOR_VALUE)
-	return true
+	return nil
 }
 
 // StunAttribute: Base class for all STUN/TURN attributes.
 type StunAttribute interface {
 	// Reads the body (not the type or length) for this type of attribute from
 	// the given buffer.  Return value is true if successful.
-	Read(buf *bytes.Reader) bool
+	Read(buf *bytes.Reader) error
 	// Writes the body (not the type or length) to the given buffer.  Return
 	// value is true if successful.
-	Write(buf *bytes.Buffer) bool
+	Write(buf *bytes.Buffer) error
 	SetInfo(attrType StunAttributeType, attrLen uint16, transId string)
 	GetType() StunAttributeType
 	GetLen() uint16  // for read
@@ -430,12 +419,11 @@ type StunAttributeBase struct {
 	transId  string
 }
 
-func (a *StunAttributeBase) Check(buf *bytes.Reader) bool {
+func (a *StunAttributeBase) Check(buf *bytes.Reader) error {
 	if buf.Len() < int(a.attrLen) {
-		log.Println("[ice] no enough data, length=", buf.Len(), ", require len=", a.attrLen)
-		return false
+		return NewError("no enough data, length=", buf.Len(), ", require len=", a.attrLen)
 	}
-	return true
+	return nil
 }
 
 func (a *StunAttributeBase) SetType(attrType StunAttributeType) {
@@ -501,65 +489,62 @@ func (a *StunAddressAttribute) GetLen2() uint16 {
 	}
 }
 
-func (a *StunAddressAttribute) Read(buf *bytes.Reader) bool {
-	if !a.Check(buf) {
-		return false
+func (a *StunAddressAttribute) Read(buf *bytes.Reader) error {
+	if err := a.Check(buf); err != nil {
+		return err
 	}
 
 	var dummy uint8
-	if ReadBig(buf, &dummy) != nil {
-		return false
+	if err := ReadBig(buf, &dummy); err != nil {
+		return err
 	}
 
 	// stun network famliy(ipv4/ipv6)
-	if ReadBig(buf, &a.family) != nil {
-		return false
+	if err := ReadBig(buf, &a.family); err != nil {
+		return err
 	}
 
 	// read port
-	if ReadBig(buf, &a.port) != nil {
-		return false
+	if err := ReadBig(buf, &a.port); err != nil {
+		return err
 	}
 
 	// read ip
 	if a.family == STUN_ADDRESS_IPV4 {
 		a.ip = make([]byte, 4)
-		if ReadBig(buf, a.ip) != nil {
-			log.Println("[ice] read ipv4 failed")
-			return false
+		if err := ReadBig(buf, a.ip); err != nil {
+			return NewError2(err, "read ipv4 failed")
 		}
 	} else if a.family == STUN_ADDRESS_IPV6 {
 		a.ip = make([]byte, 20)
-		if ReadBig(buf, a.ip) != nil {
-			log.Println("[ice] read ipv6 failed")
-			return false
+		if err := ReadBig(buf, a.ip); err != nil {
+			return NewError2(err, "read ipv6 failed")
 		}
 	}
 
-	return true
+	return nil
 }
 
-func (a *StunAddressAttribute) Write(buf *bytes.Buffer) bool {
+func (a *StunAddressAttribute) Write(buf *bytes.Buffer) error {
 	if a.family == STUN_ADDRESS_UNDEF {
-		log.Println("[ice] Error writing address attribute: unknown family.")
-		return false
+		return NewError("Error writing address attribute: unknown family")
 	}
 	var zero uint8 = 0
 	WriteBig(buf, zero)
 	WriteBig(buf, a.family)
 	WriteBig(buf, a.port)
 	WriteBig(buf, a.ip)
-	return true
+	return nil
 }
 
 func (a *StunAddressAttribute) SetAddr(addr net.Addr) {
 	strAddr := addr.String()
 	if host, port, err := net.SplitHostPort(strAddr); err == nil {
-		//log.Println("[ice] set addr:", strAddr)
+		//fmt.Println("[ice] set addr:", strAddr)
 		a.SetIP(net.ParseIP(host))
 		a.SetPort(Atou16(port))
 	} else {
-		log.Println("[ice] fail to set addr:", strAddr)
+		fmt.Println("[ice] fail to set addr:", strAddr)
 	}
 }
 
@@ -594,19 +579,18 @@ func (a *StunXorAddressAttribute) GetLen2() uint16 {
 	}
 }
 
-func (a *StunXorAddressAttribute) Read(buf *bytes.Reader) bool {
-	if !a.Addr.Read(buf) {
-		return false
+func (a *StunXorAddressAttribute) Read(buf *bytes.Reader) error {
+	if err := a.Addr.Read(buf); err != nil {
+		return err
 	}
 	a.XorPort = a.Addr.port ^ uint16(kStunMagicCookie>>16)
 	a.GetXoredIP()
-	return true
+	return nil
 }
 
-func (a *StunXorAddressAttribute) Write(buf *bytes.Buffer) bool {
+func (a *StunXorAddressAttribute) Write(buf *bytes.Buffer) error {
 	if a.Addr.family == STUN_ADDRESS_UNDEF {
-		log.Println("[ice] invalid addr family in xoraddr")
-		return false
+		return NewError("invalid addr family in xoraddr")
 	}
 
 	var zero uint8 = 0
@@ -621,7 +605,7 @@ func (a *StunXorAddressAttribute) Write(buf *bytes.Buffer) bool {
 	WriteBig(buf, a.XorPort)
 	// 4bytes
 	WriteBig(buf, a.XorIP)
-	return true
+	return nil
 }
 
 func (a *StunXorAddressAttribute) GetXoredIP() {
@@ -666,26 +650,24 @@ func (a *StunByteStringAttribute) GetLen2() uint16 {
 	return uint16(len(a.Data))
 }
 
-func (a *StunByteStringAttribute) Read(buf *bytes.Reader) bool {
-	if !a.Check(buf) {
-		log.Println("[ice] invalid buf for StunByteStringAttribute")
-		return false
+func (a *StunByteStringAttribute) Read(buf *bytes.Reader) error {
+	if err := a.Check(buf); err != nil {
+		return err
 	}
 
 	a.Data = make([]byte, a.attrLen)
 	if _, err := buf.Read(a.Data); err != nil {
 		a.Data = nil
-		log.Println("[ice] fail to read for StunByteStringAttribute")
-		return false
+		return NewError2(err, "fail to read for StunByteStringAttribute")
 	}
 	a.ConsumePadding(buf, int(a.attrLen))
-	return true
+	return nil
 }
 
-func (a *StunByteStringAttribute) Write(buf *bytes.Buffer) bool {
+func (a *StunByteStringAttribute) Write(buf *bytes.Buffer) error {
 	buf.Write(a.Data)
 	a.WritePadding(buf, len(a.Data))
-	return true
+	return nil
 }
 
 func (a *StunByteStringAttribute) CopyBytes(data []byte) {
@@ -717,17 +699,17 @@ func (a *StunUInt32Attribute) SetBit(index int, value bool) {
 	}
 }
 
-func (a *StunUInt32Attribute) Read(buf *bytes.Reader) bool {
+func (a *StunUInt32Attribute) Read(buf *bytes.Reader) error {
 	if a.GetLen() != 4 {
-		return false
+		return NewError("len is not 4")
 	}
 	ReadBig(buf, a.bits)
-	return true
+	return nil
 }
 
-func (a *StunUInt32Attribute) Write(buf *bytes.Buffer) bool {
+func (a *StunUInt32Attribute) Write(buf *bytes.Buffer) error {
 	WriteBig(buf, a.bits)
-	return true
+	return nil
 }
 
 // Implements STUN attributes that record an error code.
@@ -739,21 +721,20 @@ type StunErrorCodeAttribute struct {
 	Reason string
 }
 
-func (a *StunErrorCodeAttribute) Read(buf *bytes.Reader) bool {
+func (a *StunErrorCodeAttribute) Read(buf *bytes.Reader) error {
 	if buf.Len() < 4 {
-		return false
+		return NewError("len is not 4")
 	}
 
 	reasonLen := buf.Len() - 4
 
 	var val uint32
-	if ReadBig(buf, &val) != nil {
-		log.Println("[ice] fail to read 4-bytes in error-code")
-		return false
+	if err := ReadBig(buf, &val); err != nil {
+		return NewError2(err, "fail to read 4-bytes in error-code")
 	}
 
 	if (val >> 11) != 0 {
-		log.Println("[ice] error-code bits not zero")
+		fmt.Println("[ice] error-code bits not zero")
 	}
 
 	a.Class = uint8((val >> 8) & 0x7)
@@ -761,17 +742,16 @@ func (a *StunErrorCodeAttribute) Read(buf *bytes.Reader) bool {
 	if reasonLen > 0 {
 		data := make([]byte, reasonLen)
 		if _, err := buf.Read(data); err != nil {
-			log.Println("[ice] fail to read error-reason:", err)
-			return false
+			return NewError2(err, "fail to read error-reason")
 		}
 		a.Reason = string(data)
 	}
-	//log.Println("[ice] read error-code:", a)
-	return true
+	//fmt.Println("[ice] read error-code:", a)
+	return nil
 }
 
-func (a *StunErrorCodeAttribute) Write(buf *bytes.Buffer) bool {
-	return false
+func (a *StunErrorCodeAttribute) Write(buf *bytes.Buffer) error {
+	return nil
 }
 
 func (a *StunErrorCodeAttribute) Code() int {
@@ -788,7 +768,7 @@ func (a *StunErrorCodeAttribute) SetReason(reason string) {
 }
 
 // GenStunMessageRequest generates stun request packet
-func GenStunMessageRequest(buf *bytes.Buffer, sendUfrag, recvUfrag, recvPwd string) bool {
+func GenStunMessageRequest(buf *bytes.Buffer, sendUfrag, recvUfrag, recvPwd string) error {
 	sendKey := recvUfrag + ":" + sendUfrag
 	usernameAttr := NewStunByteStringAttribute(STUN_ATTR_USERNAME, []byte(sendKey))
 
@@ -800,7 +780,7 @@ func GenStunMessageRequest(buf *bytes.Buffer, sendUfrag, recvUfrag, recvPwd stri
 }
 
 // GenStunMessageResponse generates stun response packet
-func GenStunMessageResponse(buf *bytes.Buffer, passwd string, transId string, addr net.Addr) bool {
+func GenStunMessageResponse(buf *bytes.Buffer, passwd string, transId string, addr net.Addr) error {
 	xorAttr := &StunXorAddressAttribute{}
 	xorAttr.SetType(STUN_ATTR_XOR_MAPPED_ADDRESS)
 	xorAttr.Addr.SetAddr(addr)
@@ -836,7 +816,7 @@ func IsDtlsComplete(data []byte) bool {
 
 		recordLen := int((tmpData[11] << 8) | (tmpData[12]))
 		packetLen := recordLen + kDtlsRecordHeaderLen
-		//log.Println("dtls:", recordLen, packetLen, len(tmpData))
+		//fmt.Println("dtls:", recordLen, packetLen, len(tmpData))
 		if packetLen > len(tmpData) {
 			return false
 		}
@@ -907,7 +887,7 @@ func IsStunPacket(data []byte) bool {
 	var magic uint32
 	binary.Read(buf, binary.BigEndian, &magic)
 	if magic != kStunMagicCookie {
-		//log.Println("[ice] check: ", magic, kStunMagicCookie)
+		//fmt.Println("[ice] check: ", magic, kStunMagicCookie)
 		// If magic cookie is invalid, only support RFC5389, not including RFC3489
 		return false
 	}

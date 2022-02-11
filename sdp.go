@@ -1,4 +1,4 @@
-package util
+package goutil
 
 import (
 	//"crypto/rsa"
@@ -9,7 +9,6 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"strings"
 )
 
@@ -338,11 +337,11 @@ func (m *MediaSdp) parseSdp(data []byte) bool {
 		lines = strings.Split(string(data), "\n")
 	}
 
-	//log.Println("[sdp] parseSdp, lines=", len(lines))
+	//fmt.Println("[sdp] parseSdp, lines=", len(lines))
 	for item := range lines {
 		line := []byte(lines[item])
 		if len(line) <= 2 || line[1] != '=' {
-			//log.Println("invalid sdp line: ", string(line))
+			//fmt.Println("invalid sdp line: ", string(line))
 			continue
 		}
 
@@ -397,7 +396,7 @@ func (m *MediaSdp) parseSdp_a(line []byte, media *MediaAttr) {
 		}
 
 		if media == nil {
-			log.Println("[sdp] no valid media for line=", string(line[:]))
+			fmt.Println("[sdp] no valid media for line=", string(line[:]))
 			return
 		}
 
@@ -419,7 +418,7 @@ func (m *MediaSdp) parseSdp_a(line []byte, media *MediaAttr) {
 
 	if akey == "group" {
 		attrs := strings.Split(fields[1], " ")
-		//log.Println("[sdp] a=group:", attrs, len(attrs))
+		//fmt.Println("[sdp] a=group:", attrs, len(attrs))
 		if len(attrs) >= 1 {
 			aval := strings.ToLower(attrs[0])
 			switch aval {
@@ -428,7 +427,7 @@ func (m *MediaSdp) parseSdp_a(line []byte, media *MediaAttr) {
 					m.group_bundles = append(m.group_bundles, attrs[1:]...)
 				}
 			default:
-				log.Println("[sdp] unsupported attr - a=group:", aval)
+				fmt.Println("[sdp] unsupported attr - a=group:", aval)
 			}
 		}
 		return
@@ -459,7 +458,7 @@ func (m *MediaSdp) parseSdp_a(line []byte, media *MediaAttr) {
 			return
 		}
 
-		log.Println("[sdp] no valid media for line=", string(line[:]))
+		fmt.Println("[sdp] no valid media for line=", string(line[:]))
 		return
 	}
 
@@ -580,7 +579,7 @@ func (m *MediaSdp) parseSdp_a(line []byte, media *MediaAttr) {
 	} else if akey == "maxptime" {
 		media.maxptime = Atoi(fields[1])
 	} else {
-		log.Println("[sdp] unsupported attr=", akey)
+		fmt.Println("[sdp] unsupported attr=", akey)
 	}
 }
 
@@ -655,7 +654,7 @@ func (m *MediaDesc) GetUfrag() string {
 	} else if (mt & kMediaApplication) != 0 {
 		return m.Sdp.applications[0].ice_ufrag
 	} else {
-		log.Println("[desc] invalid media type = ", mt)
+		fmt.Println("[desc] invalid media type = ", mt)
 		return ""
 	}
 }
@@ -669,7 +668,7 @@ func (m *MediaDesc) GetPasswd() string {
 	} else if (mt & kMediaApplication) != 0 {
 		return m.Sdp.applications[0].ice_pwd
 	} else {
-		log.Println("[desc] invalid media type = ", mt)
+		fmt.Println("[desc] invalid media type = ", mt)
 		return ""
 	}
 }
@@ -683,7 +682,7 @@ func (m *MediaDesc) GetCandidates() []string {
 	} else if (mt & kMediaApplication) != 0 {
 		return m.Sdp.applications[0].candidates
 	} else {
-		log.Println("[desc] invalid media type = ", mt)
+		fmt.Println("[desc] invalid media type = ", mt)
 		return nil
 	}
 }
@@ -708,7 +707,7 @@ func (m *MediaDesc) CreateAnswer(agent string, certFile string) bool {
 	if cert, err := LoadX509Certificate(certFile); err == nil {
 		sum := sha256.Sum256(cert.Raw)
 		if len(sum) != sha256.Size {
-			log.Println("[sdp] fail to sha256.Sum256")
+			fmt.Println("[sdp] fail to sha256.Sum256")
 			return false
 		}
 		prefix := ""
@@ -718,16 +717,16 @@ func (m *MediaDesc) CreateAnswer(agent string, certFile string) bool {
 			prefix = ":"
 		}
 		// 32*2+31 = 95
-		log.Println("[sdp] fingerprint=", len(fingerprint), fingerprint)
+		fmt.Println("[sdp] fingerprint=", len(fingerprint), fingerprint)
 		m.av_fingerprint.First = "sha-256"
 		m.av_fingerprint.Second = fingerprint
 	} else {
-		log.Println("[sdp] fail to load x509:", err)
+		fmt.Println("[sdp] fail to load x509:", err)
 		return false
 	}
 
 	// pre-select each m=audio
-	log.Println("[sdp] check audios:", len(m.Sdp.audios))
+	fmt.Println("[sdp] check audios:", len(m.Sdp.audios))
 	if len(m.Sdp.audios) > 0 {
 		// priority: opus > pcmu > pcma
 		codecs := []string{"opus", "pcmu", "pcma"}
@@ -755,7 +754,7 @@ func (m *MediaDesc) CreateAnswer(agent string, certFile string) bool {
 	}
 
 	// pre-select in each m=video
-	log.Println("[sdp] check videos:", len(m.Sdp.videos))
+	fmt.Println("[sdp] check videos:", len(m.Sdp.videos))
 	if len(m.Sdp.videos) > 0 {
 		//codecs := []string{"h264-0", "h264-1", "h264-2"}
 
@@ -772,7 +771,7 @@ func (m *MediaDesc) CreateAnswer(agent string, certFile string) bool {
 			// select the first h264
 			for j := range video.rtpmaps {
 				rtpmap := video.rtpmaps[j]
-				//log.Println("[sdp] check codec:", rtpmap.codec)
+				//fmt.Println("[sdp] check codec:", rtpmap.codec)
 				switch rtpmap.codec {
 				case "h264":
 					if !have_h264 {
@@ -795,13 +794,13 @@ func (m *MediaDesc) CreateAnswer(agent string, certFile string) bool {
 			if main == nil {
 				continue
 			}
-			//log.Println("[sdp] check main rtpmap:", main)
+			//fmt.Println("[sdp] check main rtpmap:", main)
 
 			for j := range video.rtpmaps {
 				rtpmap := video.rtpmaps[j]
 				if rtpmap.codec == "rtx" {
 					if fmtp, ok := video.fmtps[rtpmap.ptype]; ok {
-						//log.Println("[sdp] check rtpmap:", rtpmap, fmtp)
+						//fmt.Println("[sdp] check rtpmap:", rtpmap, fmtp)
 						if ptype, _ := fmtp.props["apt"]; ptype == main.ptype {
 							have_rtx = true
 							have_rtx_apt = true
@@ -877,13 +876,13 @@ func (m *MediaDesc) AnswerSdp() string {
 
 	bundles := "a=group:BUNDLE"
 	semantics := "a=msid-semantic:WMS"
-	log.Println("[desc] all bundles: ", m.Sdp.group_bundles)
+	fmt.Println("[desc] all bundles: ", m.Sdp.group_bundles)
 
 	var body []string
 	for i := range m.Sdp.group_bundles {
 		bundle := m.Sdp.group_bundles[i]
 		bundles += " " + bundle
-		log.Println("[desc] one media bundle=", bundle)
+		fmt.Println("[desc] one media bundle=", bundle)
 
 		// check m=audio
 		for j := range m.Sdp.audios {
@@ -1109,7 +1108,7 @@ func UpdateSdpCandidates(data []byte, candidates []string) []byte {
 	var hadCandidate bool
 	var sdp []string
 
-	//log.Println("[sdp] replace candidates, sdp lines=", len(lines))
+	//fmt.Println("[sdp] replace candidates, sdp lines=", len(lines))
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, "m=") {
@@ -1148,7 +1147,7 @@ func GetSdpCandidates(data []byte) []string {
 	}
 
 	var candidates []string
-	//log.Println("[sdp] replace candidates, sdp lines=", len(lines))
+	//fmt.Println("[sdp] replace candidates, sdp lines=", len(lines))
 	for _, line := range lines {
 		if strings.HasPrefix(line, "a=candidate:") {
 			candidates = append(candidates, line)
@@ -1181,7 +1180,7 @@ func ParseCandidates(lines []string) []Candidate {
 		}
 		items := strings.Split(line, " ")
 		if len(items) < 8 {
-			log.Println("[sdp] invalid sdp candidate:", line)
+			fmt.Println("[sdp] invalid sdp candidate:", line)
 			continue
 		}
 

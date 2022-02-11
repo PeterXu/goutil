@@ -1,26 +1,31 @@
-package util
+package goutil
 
-var _ssrcMap map[uint32]uint32
+var _ssrcMap map[uint32]bool
+
+const (
+	kMinSsrc uint32 = 0x0000ffff
+	kMaxSsrc uint32 = 0xfffffff0
+)
 
 func init() {
-	_ssrcMap = make(map[uint32]uint32)
+	_ssrcMap = make(map[uint32]bool)
 }
 
-func _genSSRC() uint32 {
+func _genSSRC(min, max uint32) uint32 {
 	var ssrc uint32
-	for ssrc <= 0x0000ffff || ssrc >= 0xfffffff0 {
+	for ssrc <= min || ssrc >= max {
 		high := (RandomUint32() << 16)
-		low := RandomUint32() & 0xfffffff0
-		ssrc = high + low
+		low := RandomUint32()
+		ssrc = (high + low) & max
 	}
 	return ssrc
 }
 
 func CreateSSRC() uint32 {
 	for {
-		ssrc := _genSSRC()
+		ssrc := _genSSRC(kMinSsrc, kMaxSsrc)
 		if _, ok := _ssrcMap[ssrc]; !ok {
-			_ssrcMap[ssrc] = 0
+			_ssrcMap[ssrc] = true
 			return ssrc
 		}
 	}
@@ -28,7 +33,7 @@ func CreateSSRC() uint32 {
 }
 
 func RegisterSSRC(ssrc uint32) {
-	_ssrcMap[ssrc] = 0
+	_ssrcMap[ssrc] = true
 }
 
 func ReturnSSRC(ssrc uint32) {
