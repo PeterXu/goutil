@@ -29,7 +29,6 @@ func CreateSSRC() uint32 {
 			return ssrc
 		}
 	}
-	return 0
 }
 
 func RegisterSSRC(ssrc uint32) {

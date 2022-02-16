@@ -12,13 +12,17 @@ import (
 	"strings"
 )
 
-const kSdpOwner string = "xrtc"
-const kSdpCname string = "xrtc_endpoint"
-const kAudioStreamLabel string = "stream_audio_label"
-const kAudioTrackLabel string = "track_audio_label"
+const (
+	SdpOwner         string = "xrtc"
+	SdpCname         string = "xrtc_endpoint"
+	AudioStreamLabel string = "stream_audio_label"
+	AudioTrackLabel  string = "track_audio_label"
+)
 
-var kNewlineChar = []byte{'\n'}
-var kSpaceChar = []byte{' '}
+var (
+	NewlineChar = []byte{'\n'}
+	SpaceChar   = []byte{' '}
+)
 
 // MediaType m=audio/video/application
 type MediaType int
@@ -538,6 +542,7 @@ func (m *MediaSdp) parseSdp_a(line []byte, media *MediaAttr) {
 				}
 			} else if attrs[0] == "SIM" {
 				// not support
+				fmt.Println("unsupported a=SIM")
 			}
 		}
 	} else if akey == "ssrc" {
@@ -790,7 +795,7 @@ func (m *MediaDesc) CreateAnswer(agent string, certFile string) bool {
 					}
 				}
 			}
-			main, _ := video.av_rtpmaps["main"]
+			main := video.av_rtpmaps["main"]
 			if main == nil {
 				continue
 			}
@@ -801,7 +806,7 @@ func (m *MediaDesc) CreateAnswer(agent string, certFile string) bool {
 				if rtpmap.codec == "rtx" {
 					if fmtp, ok := video.fmtps[rtpmap.ptype]; ok {
 						//fmt.Println("[sdp] check rtpmap:", rtpmap, fmtp)
-						if ptype, _ := fmtp.props["apt"]; ptype == main.ptype {
+						if ptype := fmtp.props["apt"]; ptype == main.ptype {
 							have_rtx = true
 							have_rtx_apt = true
 							main.apt_ptype = rtpmap.ptype
@@ -870,7 +875,7 @@ func (m *MediaDesc) GetVideoCodec() string {
 func (m *MediaDesc) AnswerSdp() string {
 	var prefix []string
 	prefix = append(prefix, "v=0")
-	prefix = append(prefix, "o="+kSdpOwner+" 123456789 2 IN IP4 127.0.0.1")
+	prefix = append(prefix, "o="+SdpOwner+" 123456789 2 IN IP4 127.0.0.1")
 	prefix = append(prefix, "s=-")
 	prefix = append(prefix, "t=0 0")
 
@@ -888,7 +893,7 @@ func (m *MediaDesc) AnswerSdp() string {
 		for j := range m.Sdp.audios {
 			audio := m.Sdp.audios[j]
 			if audio.mid == bundle {
-				rtpmap, _ := audio.av_rtpmaps["main"]
+				rtpmap := audio.av_rtpmaps["main"]
 				mline := "m=audio 1 " + audio.proto
 				if rtpmap != nil {
 					mline += " " + Itoa(rtpmap.ptype)
@@ -936,14 +941,14 @@ func (m *MediaDesc) AnswerSdp() string {
 				}
 				body = append(body, "a=rtpmap:126 telephone-event/8000")
 
-				semantics += " " + kAudioStreamLabel
-				body = append(body, "a=ssrc:1 cname:"+kSdpCname)
+				semantics += " " + AudioStreamLabel
+				body = append(body, "a=ssrc:1 cname:"+SdpCname)
 				if !m.av_unified_plan {
-					body = append(body, "a=ssrc:1 msid:"+kAudioStreamLabel+" "+kAudioTrackLabel)
-					body = append(body, "a=ssrc:1 mslabel:"+kAudioStreamLabel)
-					body = append(body, "a=ssrc:1 label:"+kAudioTrackLabel)
+					body = append(body, "a=ssrc:1 msid:"+AudioStreamLabel+" "+AudioTrackLabel)
+					body = append(body, "a=ssrc:1 mslabel:"+AudioStreamLabel)
+					body = append(body, "a=ssrc:1 label:"+AudioTrackLabel)
 				} else {
-					body = append(body, "a=msid:"+kAudioStreamLabel+" "+kAudioTrackLabel)
+					body = append(body, "a=msid:"+AudioStreamLabel+" "+AudioTrackLabel)
 				}
 			}
 		}
@@ -975,9 +980,9 @@ func (m *MediaDesc) AnswerSdp() string {
 		for j := range m.Sdp.videos {
 			video := m.Sdp.videos[j]
 			if video.mid == bundle {
-				rtpmap, _ := video.av_rtpmaps["main"]
-				redmap, _ := video.av_rtpmaps["red"]
-				fecmap, _ := video.av_rtpmaps["ulpfec"]
+				rtpmap := video.av_rtpmaps["main"]
+				redmap := video.av_rtpmaps["red"]
+				fecmap := video.av_rtpmaps["ulpfec"]
 
 				mline := "m=video 1 " + video.proto
 				if rtpmap != nil {
@@ -1064,7 +1069,7 @@ func (m *MediaDesc) AnswerSdp() string {
 					if video.use_rtx_fid {
 						body = append(body, "a=ssrc-group:FID main_ssrc rtx_ssrc")
 					}
-					body = append(body, "a=ssrc:main_ssrc cname:"+kSdpCname)
+					body = append(body, "a=ssrc:main_ssrc cname:"+SdpCname)
 					if !m.av_unified_plan {
 						body = append(body, "a=ssrc:main_ssrc msid:stream_video_label track_video_label")
 						body = append(body, "a=ssrc:main_ssrc mslabel:stream_video_label")
@@ -1073,7 +1078,7 @@ func (m *MediaDesc) AnswerSdp() string {
 						body = append(body, "a=msid:{stream_video_label} {track_video_label}")
 					}
 					if video.use_rtx_fid {
-						body = append(body, "a=ssrc:rtx_ssrc cname:"+kSdpCname)
+						body = append(body, "a=ssrc:rtx_ssrc cname:"+SdpCname)
 						if !m.av_unified_plan {
 							body = append(body, "a=ssrc:rtx_ssrc msid:stream_video_label track_video_label")
 							body = append(body, "a=ssrc:rtx_ssrc mslabel:stream_video_label")

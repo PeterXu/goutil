@@ -19,7 +19,7 @@ type Map struct {
 func NewMap(less fnMapLess) *Map {
 	return &Map{
 		maps: make(map[interface{}]interface{}),
-		keys: make([]interface{}, 0, 0),
+		keys: make([]interface{}, 0),
 		less: less,
 	}
 }

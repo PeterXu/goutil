@@ -1,6 +1,9 @@
 package goutil
 
 import (
+	"crypto/md5"
+	"fmt"
+	"io"
 	"math"
 	"math/rand"
 	"reflect"
@@ -294,4 +297,17 @@ func GT(a, b lessInterface) bool {
 // a >= b or !(a < b)
 func GE(a, b lessInterface) bool {
 	return !a.Less(b)
+}
+
+// md5sum
+func MD5SumGenerate(items []string) string {
+	h := md5.New()
+	for _, data := range items {
+		io.WriteString(h, data)
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
+}
+
+func MD5SumVerify(items []string, expect string) bool {
+	return (MD5SumGenerate(items) == expect)
 }

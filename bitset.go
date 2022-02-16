@@ -62,7 +62,7 @@ func (b BitSet) Set(pos int) {
 
 // Sets all bits in the bitset
 func (b BitSet) SetAll() {
-	for i, _ := range b {
+	for i := range b {
 		b[i] = true
 	}
 }
@@ -76,7 +76,7 @@ func (b BitSet) Reset(pos int) {
 
 // Resets all bits in the bitset
 func (b BitSet) ResetAll() {
-	for i, _ := range b {
+	for i := range b {
 		b[i] = false
 	}
 }

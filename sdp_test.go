@@ -1,53 +1,53 @@
 package goutil
 
 import (
+	"fmt"
 	"io/ioutil"
-	"log"
 	"testing"
 )
 
 func TestSdp_1(t *testing.T) {
-	agent := kFirefoxAgent
+	agent := FirefoxAgent
 	offerFile := "../testing/firefox_sdp_offer.txt"
 	offer, err := ioutil.ReadFile(offerFile)
 	if err != nil {
-		log.Warnln("fail to read offer:", err)
+		fmt.Println("fail to read offer:", err)
 		return
 	}
 
 	var desc MediaDesc
 	if !desc.Parse(offer) {
-		log.Warnln("invalid offer")
+		fmt.Println("invalid offer")
 		return
 	}
 
 	certFile := "../testing/certs/cert.pem"
 	if !desc.CreateAnswer(agent, certFile) {
-		log.Warnln("invalid offer for answer")
+		fmt.Println("invalid offer for answer")
 		return
 	}
-	log.Println("firefox answer: ", desc.AnswerSdp())
+	fmt.Println("firefox answer: ", desc.AnswerSdp())
 }
 
 func TestSdp_2(t *testing.T) {
-	agent := kChromeAgent
+	agent := ChromeAgent
 	offerFile := "../testing/chrome_sdp_offer.txt"
 	offer, err := ioutil.ReadFile(offerFile)
 	if err != nil {
-		log.Warnln("fail to read offer:", err)
+		fmt.Println("fail to read offer:", err)
 		return
 	}
 
 	var desc MediaDesc
 	if !desc.Parse(offer) {
-		log.Warnln("invalid offer")
+		fmt.Println("invalid offer")
 		return
 	}
 
 	certFile := "../testing/certs/cert.pem"
 	if !desc.CreateAnswer(agent, certFile) {
-		log.Warnln("invalid offer for answer")
+		fmt.Println("invalid offer for answer")
 		return
 	}
-	log.Println("chrome answer: ", desc.AnswerSdp())
+	fmt.Println("chrome answer: ", desc.AnswerSdp())
 }

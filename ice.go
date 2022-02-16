@@ -18,9 +18,9 @@ type StunMessageType uint16
 // These are the types of STUN messages defined in RFC 5389.
 const (
 	STUN_BINDING_REQUEST        StunMessageType = 0x0001
-	STUN_BINDING_INDICATION                     = 0x0011
-	STUN_BINDING_RESPONSE                       = 0x0101
-	STUN_BINDING_ERROR_RESPONSE                 = 0x0111
+	STUN_BINDING_INDICATION     StunMessageType = 0x0011
+	STUN_BINDING_RESPONSE       StunMessageType = 0x0101
+	STUN_BINDING_ERROR_RESPONSE StunMessageType = 0x0111
 )
 
 // StunAttributeType 2-bytes
@@ -33,23 +33,23 @@ type StunAttributeType uint16
 // the time the packet is generated.
 const (
 	STUN_ATTR_MAPPED_ADDRESS     StunAttributeType = 0x0001 // Address
-	STUN_ATTR_USERNAME                             = 0x0006 // ByteString
-	STUN_ATTR_MESSAGE_INTEGRITY                    = 0x0008 // ByteString, 20 bytes
-	STUN_ATTR_ERROR_CODE                           = 0x0009 // ErrorCode
-	STUN_ATTR_UNKNOWN_ATTRIBUTES                   = 0x000a // UInt16List
-	STUN_ATTR_REALM                                = 0x0014 // ByteString
-	STUN_ATTR_NONCE                                = 0x0015 // ByteString
-	STUN_ATTR_XOR_MAPPED_ADDRESS                   = 0x0020 // XorAddress
-	STUN_ATTR_SOFTWARE                             = 0x8022 // ByteString
-	STUN_ATTR_ALTERNATE_SERVER                     = 0x8023 // ByteString
-	STUN_ATTR_FINGERPRINT                          = 0x8028 // UInt32
-	STUN_ATTR_RETRANSMIT_COUNT                     = 0xFF00 // UInt32
+	STUN_ATTR_USERNAME           StunAttributeType = 0x0006 // ByteString
+	STUN_ATTR_MESSAGE_INTEGRITY  StunAttributeType = 0x0008 // ByteString, 20 bytes
+	STUN_ATTR_ERROR_CODE         StunAttributeType = 0x0009 // ErrorCode
+	STUN_ATTR_UNKNOWN_ATTRIBUTES StunAttributeType = 0x000a // UInt16List
+	STUN_ATTR_REALM              StunAttributeType = 0x0014 // ByteString
+	STUN_ATTR_NONCE              StunAttributeType = 0x0015 // ByteString
+	STUN_ATTR_XOR_MAPPED_ADDRESS StunAttributeType = 0x0020 // XorAddress
+	STUN_ATTR_SOFTWARE           StunAttributeType = 0x8022 // ByteString
+	STUN_ATTR_ALTERNATE_SERVER   StunAttributeType = 0x8023 // ByteString
+	STUN_ATTR_FINGERPRINT        StunAttributeType = 0x8028 // UInt32
+	STUN_ATTR_RETRANSMIT_COUNT   StunAttributeType = 0xFF00 // UInt32
 
 	// RFC 5245 ICE STUN attributes.
-	STUN_ATTR_PRIORITY        = 0x0024 // UInt32
-	STUN_ATTR_USE_CANDIDATE   = 0x0025 // No content, Length = 0
-	STUN_ATTR_ICE_CONTROLLING = 0x802A // UInt64
-	STUN_ATTR_NETWORK_INFO    = 0xC057 // UInt32
+	STUN_ATTR_PRIORITY        StunAttributeType = 0x0024 // UInt32
+	STUN_ATTR_USE_CANDIDATE   StunAttributeType = 0x0025 // No content, Length = 0
+	STUN_ATTR_ICE_CONTROLLING StunAttributeType = 0x802A // UInt64
+	STUN_ATTR_NETWORK_INFO    StunAttributeType = 0xC057 // UInt32
 )
 
 // StunAttributeValueType 4bytes
@@ -77,13 +77,13 @@ type StunAddressFamily uint8
 const (
 	// NB: UNDEF is not part of the STUN spec.
 	STUN_ADDRESS_UNDEF StunAddressFamily = 0
-	STUN_ADDRESS_IPV4                    = 1
-	STUN_ADDRESS_IPV6                    = 2
+	STUN_ADDRESS_IPV4  StunAddressFamily = 1
+	STUN_ADDRESS_IPV6  StunAddressFamily = 2
 )
 
 const (
 	// The mask used to determine whether a STUN message is a request/response etc.
-	kStunTypeMask uint32 = 0x0110
+	//kStunTypeMask uint32 = 0x0110
 
 	// STUN Attribute header length.
 	kStunAttributeHeaderSize int = 4
@@ -288,10 +288,7 @@ func (m *StunMessage) Write(buf *bytes.Buffer) error {
 // of transaction ID. For outgoing packets version of the protocol
 // is determined by the lengths of the transaction ID.
 func (m *StunMessage) IsLegacy() bool {
-	if len(m.TransId) == kStunLegacyTransactionIdLength {
-		return true
-	}
-	return false
+	return (len(m.TransId) == kStunLegacyTransactionIdLength)
 }
 
 func (m *StunMessage) SetType(dtype StunMessageType) {
@@ -640,7 +637,7 @@ type StunByteStringAttribute struct {
 func NewStunByteStringAttribute(attrType StunAttributeType, data []byte) *StunByteStringAttribute {
 	attr := &StunByteStringAttribute{}
 	attr.SetType(attrType)
-	if data != nil && len(data) > 0 {
+	if len(data) > 0 {
 		attr.CopyBytes(data)
 	}
 	return attr
@@ -814,7 +811,7 @@ func IsDtlsComplete(data []byte) bool {
 			return false
 		}
 
-		recordLen := int((tmpData[11] << 8) | (tmpData[12]))
+		recordLen := int((uint32(tmpData[11]) << 8)) | int(tmpData[12])
 		packetLen := recordLen + kDtlsRecordHeaderLen
 		//fmt.Println("dtls:", recordLen, packetLen, len(tmpData))
 		if packetLen > len(tmpData) {
@@ -887,7 +884,7 @@ func IsStunPacket(data []byte) bool {
 	var magic uint32
 	binary.Read(buf, binary.BigEndian, &magic)
 	if magic != kStunMagicCookie {
-		//fmt.Println("[ice] check: ", magic, kStunMagicCookie)
+		fmt.Println("[ice] check: ", magic, kStunMagicCookie)
 		// If magic cookie is invalid, only support RFC5389, not including RFC3489
 		return false
 	}

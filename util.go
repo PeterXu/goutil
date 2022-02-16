@@ -24,8 +24,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
 	"reflect"
+	"runtime"
 	"strconv"
+	"strings"
 	"unsafe"
 )
 
@@ -292,4 +296,23 @@ func Convert2Int16(src []byte) []int16 {
 	dst_len := C.size_t(len(dst))
 	C.goutil_convert_to_int16(src_ptr, src_len, dst_ptr, dst_len)
 	return dst
+}
+
+// get caller's func name
+func GoFuncName() string {
+	if counter, _, _, ok := runtime.Caller(1); !ok {
+		return "unknown_go_func"
+	} else {
+		fullname := runtime.FuncForPC(counter).Name()
+		parts := strings.Split(fullname, ".")
+		return parts[len(parts)-1]
+	}
+}
+
+// reset to normal when custom-tty exit
+func HandleTTYOnExit() {
+	rawModeOff := exec.Command("/bin/stty", "-raw", "echo")
+	rawModeOff.Stdin = os.Stdin
+	_ = rawModeOff.Run()
+	rawModeOff.Wait()
 }

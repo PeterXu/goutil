@@ -69,7 +69,7 @@ func (s *Set) Values() []interface{} {
 	defer s.Unlock()
 
 	var values []interface{}
-	for key, _ := range s.m {
+	for key := range s.m {
 		values = append(values, key)
 	}
 	return values
