@@ -45,12 +45,27 @@ func Atou32(s string) uint32 {
 
 // Atoi convert a string to int
 func Atoi(s string) int {
+	// like strconv.ParseInt(s, 10, 0/32)
 	i, err := strconv.Atoi(s)
 	if err != nil {
 		buf := []byte(s)
 		for k := range buf {
 			if buf[k] < '0' || buf[k] > '9' {
 				i, _ = strconv.Atoi(string(buf[0:k]))
+				break
+			}
+		}
+	}
+	return i
+}
+
+func Atoi64(s string) int64 {
+	i, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		buf := []byte(s)
+		for k := range buf {
+			if buf[k] < '0' || buf[k] > '9' {
+				i, _ = strconv.ParseInt(string(buf[0:k]), 10, 64)
 				break
 			}
 		}
